@@ -7,7 +7,7 @@ use RecursiveDirectoryIterator;
 use FilesystemIterator;
 use SplFileInfo;
 use DirectoryIterator;
-use InvalidArgumentException;
+use Compolomus\FileManager\FileManagerException;
 
 class FileManager
 {
@@ -31,35 +31,43 @@ class FileManager
     private function init(): void
     {
         $this->chroot = realpath($this->config['chroot']);
+        if (!is_readable($this->chroot) && !is_writable($this->chroot)) {
+            throw new FileManagerException('Directory must be available');
+        }
+        $this->itemList();
+    }
+
+    private function itemList(): void
+    {
+        $this->listAll = $this->list($this->chroot);
         $this->totalSpace = disk_total_space($this->chroot);
         $this->freeSpace = disk_free_space($this->chroot);
-        $this->listAll = $this->list($this->chroot);
     }
 
     private function checkItem(string $item): void
     {
         if (!\in_array($item, $this->listAll['files'], true) && !\in_array($item, $this->listAll['dirs'], true)) {
-            throw new InvalidArgumentException('Item not found');
+            throw new FileManagerException('Item not found');
         }
     }
 
     private function checkDest(string $dest): void
     {
         if (!$this->checkRoot($dest)) {
-            throw new InvalidArgumentException('Access denied');
+            throw new FileManagerException('Access denied');
         }
     }
 
     private function checkRoot(string $root, bool $strict = false): bool
     {
-        preg_match('/' . preg_quote($this->chroot, DIRECTORY_SEPARATOR) . '/', realpath($root), $matches);
+        preg_match('#(' . $this->chroot . ')#', $root, $matches);
 
-        return ($strict ? file_exists($root) : true) && \count($matches) > 1;
+        return  \count($matches) > 1 && ($strict ? file_exists($root) : true);
     }
 
     private function getIterator(?string $dir): RecursiveIteratorIterator
     {
-        if (!$this->checkRoot($dir, true)) {
+        if (!$this->checkRoot(realpath($dir), true)) {
             $dir = $this->chroot;
         }
 
@@ -84,7 +92,7 @@ class FileManager
         return $result;
     }
 
-    public function ls(string $dir)
+    public function ls(string $dir): array
     {
         return $this->list($dir, true, true);
     }
@@ -105,6 +113,7 @@ class FileManager
     public function delete(SplFileInfo $item): bool
     {
         $this->{'delete' . ucfirst($item->getType())}($item->getRealPath());
+        $this->itemList();
     }
 
     public function deleteFile(string $item): bool
@@ -128,7 +137,10 @@ class FileManager
     {
         $this->checkItem($oldName);
         $this->checkDest($newName);
-        return rename($oldName, $newName);
+        $return = rename($oldName, $newName);
+        $this->itemList();
+
+        return $return;
     }
 
     public function move(string $oldName, string $newName): bool
@@ -140,21 +152,25 @@ class FileManager
     {
         $this->checkItem($source);
         $this->checkDest($dest);
-        return copy($source, $dest);
+        $return = copy($source, $dest);
+        $this->itemList();
+
+        return $return;
     }
 
-    public function chmod(SplFileInfo $item, int $perms): bool
+    public function chmod(string $item, int $perms): bool
     {
         $this->checkItem($item);
-        return chmod($item->getRealPath(), 0 . $perms);
+        return chmod($item, 0 . $perms);
     }
 
     public function mkdir(string $dir): bool
     {
-        $this->checkDest($dir);
-        if (!mkdir($dir, 0775, true) && !is_dir($dir)) {
-            throw new InvalidArgumentException('Directory is exists or not writable');
+        if (!@mkdir($dir, 0777, true) && !@is_dir($dir)) {
+            throw new FileManagerException('Directory is exists or not writable');
         }
+        $this->checkDest($dir);
+        $this->itemList();
         return true;
     }
 

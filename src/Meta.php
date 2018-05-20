@@ -2,7 +2,6 @@
 
 namespace Compolomus\FileManager;
 
-use InvalidArgumentException;
 use SplFileInfo;
 
 class Meta
@@ -12,9 +11,6 @@ class Meta
 
     public function __construct(SplFileInfo $file)
     {
-        if (!file_exists($file)) {
-            throw new InvalidArgumentException('File not found');
-        }
         $this->setMeta($file);
     }
 
