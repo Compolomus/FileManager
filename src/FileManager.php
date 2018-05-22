@@ -46,7 +46,9 @@ class FileManager
 
     private function checkItem(string $item): void
     {
-        if (!\in_array($item, $this->listAll['files'], true) && !\in_array($item, $this->listAll['dirs'], true)) {
+//        echo '+++', \strlen($item), '+++';
+//        echo '<pre>' . print_r(($this->listAll['dirs']), true) . '</pre>';die;
+        if (!\array_key_exists($item, $this->listAll['files']) && !\array_key_exists($item, $this->listAll['dirs'])) {
             throw new FileManagerException('Item not found');
         }
     }
@@ -75,7 +77,7 @@ class FileManager
             FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST);
     }
 
-    private function list(?string $dir = null, bool $objects = false, bool $filesize = false)
+    private function list(?string $dir = null, bool $objects = false, bool $filesize = false): array
     {
         $dirs = [];
         $files = [];

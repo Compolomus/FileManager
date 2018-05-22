@@ -25,6 +25,7 @@ class FileManagerTest extends TestCase
     public function __destruct()
     {
         @unlink(__DIR__ . '/test/text.txt');
+        @unlink(__DIR__ . '/test/text2.txt');
         @rmdir(__DIR__ . '/test/mkdir');
         @rmdir(__DIR__ . '/test');
     }
@@ -51,20 +52,21 @@ class FileManagerTest extends TestCase
     {
         $this->manager->mkdir(__DIR__ . '/test/mkdir');
         $this->assertDirectoryExists(__DIR__ . '/test/mkdir');
+        $this->manager->chmod(__DIR__ . '/test/mkdir', 775);
+        $perms = substr(sprintf('%o', fileperms(__DIR__ . '/test/mkdir')), -4);
+        $meta = new Meta(new SplFileInfo(__DIR__ . '/test/mkdir'));
+        $this->assertEquals($meta->getMeta()['permissions'], $perms);
+    }
+
+    public function test_copy(): void
+    {
+        $this->manager->copy(__DIR__ . '/test/text.txt', __DIR__ . '/test/text2.txt');
+        $this->assertFileExists(__DIR__ . '/test/text2.txt');
     }
 
     public function test_mkdirException(): void
     {
         $this->expectException(FileManagerException::class);
-        $this->manager->mkdir('/usr/mkdir');
+        $this->manager->mkdir('/usr/dummy');
     }
-
-//    public function test_chmod(): void
-//    {
-//        echo '<pre>' . print_r($this->manager, true) . '</pre>';die;
-//        $this->manager->chmod(__DIR__ . '/test/mkdir', 775);
-//        $perms = substr(sprintf('%o', fileperms(__DIR__ . '/test/mkdir')), -4);
-//        $meta = new Meta(new SplFileInfo(__DIR__ . '/test/mkdir'));
-//        $this->assertTrue($meta->getMeta()['permissions'], $perms);
-//    }
 }
